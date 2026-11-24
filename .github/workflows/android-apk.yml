@@ -15,24 +15,65 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platforms;android-36 build-tools;36.0.0'
-      - name: Install Gradle 8.13
+
+      - name: Install Gradle 8.14.4
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.13'
+          gradle-version: '8.14.4'
           validate-wrappers: false
+
+      # Kotlin Gradle Plugin 2.4.21 treats the old kotlinOptions.jvmTarget DSL as an error.
+      # Patch only the CI working copy so no Gradle/Kotlin knowledge is needed from the user.
+      - name: Migrate Kotlin JVM target DSL
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/build.gradle.kts")
+          source = path.read_text(encoding="utf-8")
+          old_block = '    kotlinOptions {\n        jvmTarget = "17"\n    }\n'
+          if old_block not in source:
+              if "compilerOptions" in source:
+                  print("Kotlin compilerOptions DSL is already configured; no patch needed.")
+                  raise SystemExit(0)
+              raise SystemExit("Could not find the expected kotlinOptions.jvmTarget block in app/build.gradle.kts")
+
+          source = source.replace(old_block, "", 1)
+          anchor = "}\n\ndependencies {"
+          replacement = (
+              "}\n\n"
+              "kotlin {\n"
+              "    compilerOptions {\n"
+              "        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)\n"
+              "    }\n"
+              "}\n\n"
+              "dependencies {"
+          )
+          if anchor not in source:
+              raise SystemExit("Could not find the android/dependencies boundary in app/build.gradle.kts")
+          source = source.replace(anchor, replacement, 1)
+          path.write_text(source, encoding="utf-8")
+          print("Migrated kotlinOptions.jvmTarget to compilerOptions.jvmTarget.")
+          PY
+
       - name: Build debug APK
         run: gradle --no-daemon --stacktrace assembleDebug
+
       - name: Verify APK
         run: test -s app/build/outputs/apk/debug/app-debug.apk
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
