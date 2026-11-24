@@ -1,0 +1,23 @@
+RETROCCD — СБОРКА APK НА WINDOWS
+
+1. Установи Android Studio.
+2. Открой SDK Manager и установи Android SDK Platform 36 и Build-Tools.
+3. В Android Studio выбери JDK 17:
+   Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK.
+4. Распакуй архив RetroCCD и открой в Android Studio именно папку RetroCCD.
+5. Дождись первой синхронизации Gradle. При первой сборке Android Studio скачает необходимые build-зависимости. Само приложение не требует интернета.
+6. Открой Terminal в Android Studio и выполни:
+
+   .\gradlew.bat assembleDebug
+
+Скрипт gradlew.bat загрузит Gradle 8.13 в профиль пользователя, если его ещё нет.
+
+Готовый APK появится здесь:
+
+   app\build\outputs\apk\debug\app-debug.apk
+
+Установить на подключённый телефон (USB debugging):
+
+   adb install -r .\app\build\outputs\apk\debug\app-debug.apk
+
+Важно: текущий проект — MVP исходников, а не уже собранный APK. Перед публикацией нужно собрать и проверить его на реальных устройствах.
